@@ -16,46 +16,10 @@ export class AirdropService {
     private readonly logger: Logger,
   ) {}
 
-  // create(createAirdropDto: CreateAirdropDto) {
-  //   return 'This action adds a new airdrop';
-  // }
-
-  // findAll() {
-  //   return `This action returns all airdrop`;
-  // }
-
-  // findOne(id: number) {
-  //   return `This action returns a #${id} airdrop`;
-  // }
-
-  // update(id: number, updateAirdropDto: UpdateAirdropDto) {
-  //   return `This action updates a #${id} airdrop`;
-  // }
-
-  // remove(id: number) {
-  //   return `This action removes a #${id} airdrop`;
-  // }
-
-  getHashFromCode(code: string) {
-    return ethers.utils.solidityKeccak256(
-      ['bytes'],
-      [ethers.utils.solidityPack(['string'], [code])],
-    );
-  }
-
   generateCodes(n: number) {
-    const hashes = {};
     const actualCodes = [];
-    while (actualCodes.length < n) {
-      const code = uuidv4();
-      const hash = this.getHashFromCode(code);
-      if (!hashes[hash]) {
-        hashes[hash] = 1;
-        actualCodes.push(code);
-      }
-    }
-
-    for (let i = 0; i < actualCodes.length; i++) {
+    for (let i = 0; i < n; i++) {
+      actualCodes.push(uuidv4());
       this.airdropCodeRepository.save({
         code: actualCodes[i],
         used: false,
@@ -64,8 +28,8 @@ export class AirdropService {
 
     // set merkle root
     const tree = StandardMerkleTree.of(
-      Object.keys(hashes).map((k) => [k]),
-      ['bytes32'],
+      actualCodes.map((k) => [k]),
+      ['string'],
     );
 
     // set tree.root to the smart contract
@@ -74,7 +38,6 @@ export class AirdropService {
   async fetchCode() {
     // fetch unused code from the database
     const code = await this.airdropCodeRepository.findOneBy({ used: false });
-    const hash = this.getHashFromCode(code.code);
 
     // mark it as used
     code.used = true;
@@ -91,14 +54,14 @@ export class AirdropService {
     });
 
     const tree = StandardMerkleTree.of(
-      codes.map((c) => [this.getHashFromCode(c.code)]),
-      ['bytes32'],
+      codes.map((c) => [c.code]),
+      ['string'],
     );
-    const proof = tree.getProof([hash]);
+    const proof = tree.getProof([code.code]);
 
     // returns object
     return {
-      hash,
+      code: code.code,
       proof,
     } as TokenProofDto;
   }

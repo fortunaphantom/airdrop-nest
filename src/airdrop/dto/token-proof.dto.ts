@@ -1,4 +1,4 @@
 export class TokenProofDto {
-  hash: string;
+  code: string;
   proof: string[];
 }
